@@ -301,3 +301,5 @@ OpenGL本身没有摄像机(Camera)的概念，但可以通过把场景中的所
 
 使用矩阵的好处之一是如果你使用3个相互垂直(或非线性)的轴定义了一个坐标空间，你可以用这3个轴外加一个平移向量来创建一个矩阵，并且你可以用这个矩阵乘以任何向量来将其变换到那个坐标空间。这正是LookAt矩阵所做的。
 
+![Look At 矩阵](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518793655102.jpg)
+
