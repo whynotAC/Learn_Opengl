@@ -22,13 +22,13 @@
 
 **顶点数组对象(Vertex Array Object,VAO)**可以像顶点穿冲对象那样被绑定，任何随后的顶点属性调用都会存储在这个VAO中。
 
-![数据存储方式](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1516625903746.jpg)
+![数据存储方式](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1516625903746.jpg)
 
 着色器
 -----------------------
 着色器(Shader)是运行在GPU上的小程序。这些小程序为图形渲染管线的某个特定部分而运行。从基本意义上来说，着色器只是一种把输入转化为输出的程序。着色器也是一种非常独立的程序，因为它们之间不能相互通信；它们之间唯一的沟通只有通过输入和输出。
 
-![着色器经历过程](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1516623566338.jpg)
+![着色器经历过程](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1516623566338.jpg)
 
 **GLSL**
 
@@ -215,7 +215,7 @@ OpenGL希望在每次顶点着色器运行后，可见的所有顶点都为标�
 * 剪切空间(Clip Space)
 * 屏幕空间(Screen Space)
 
-![坐标转变图示](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518272768667.jpg)
+![坐标转变图示](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518272768667.jpg)
 
 这就是一个顶点在最终被转化为片段之前需要经历的所有不同状态。
 
@@ -257,7 +257,7 @@ OpenGL希望在每次顶点着色器运行后，可见的所有顶点都为标�
 
 正射投影矩阵定义了一个类似立方体的平截头箱，它定义了一个裁剪空间，在这个空间之外的顶点都会被裁剪掉。创建一个正射投影矩阵需要制定可见平截头体的宽、高和长度。在使用正射投影矩阵变换至裁剪空间之后处于这个平截头体内的所有坐标将不会被裁剪掉。它的平截头体看起来像一个容器。
 
-![正射投影示意图](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518277578514.jpg)
+![正射投影示意图](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518277578514.jpg)
 
 平截头体由宽、高、近(Near)平面和远(Far)平面所制定。任何出现在近平面之前或者远平面之后的坐标都会被裁剪掉。正射平截头体直接将平截头体内部的所有坐标映射为标准化设备坐标，因为每个向量的w分量都没有进行改变；如果w分量等于1.0，透视除法则不会改变这个坐标。
 
@@ -265,7 +265,7 @@ OpenGL希望在每次顶点着色器运行后，可见的所有顶点都为标�
 
 如果你曾经体验过实际生活给你带来的景象，你就会注意到离你越远的东西看起来更小。这个奇怪的效果称之为**透视(Perspective)**。
 
-![透视投影示意图](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518278195472.jpg)
+![透视投影示意图](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518278195472.jpg)
 
 投影矩阵将给定的平截头体范围映射到裁剪空间，除此之外还修改了每个顶点坐标的w值，从而使得离观察者越远的顶点坐标w分量越大。被变换到裁剪空间的坐标都会在-w到w的范围之间(任何大于这个范围的坐标都会被裁剪掉)。OpenGL要求所有可见的坐标都落在-1.0到1.0范围内，作为顶点着色器最后的输出，因此，一旦坐标在裁剪空间之后，透视除法就会被应用到裁剪空间坐标上:
 
@@ -289,7 +289,7 @@ OpenGL本身没有摄像机(Camera)的概念，但可以通过把场景中的所
 
 当讨论摄像机/观察空间(Camera/View Space)的时候，是在讨论以摄像机的视角做场景原点时场景中所有的顶点坐标。观察矩阵把所有的世界坐标变换为相对于摄像机位置与方向的观察坐标。要定义一个摄像机，需要它在世界空间中的位置、观察的方向、一个只向它右侧的向量以及一个指向它上方的向量。实际上，我们创建了一个三个单位轴相互垂直的、以摄像机的位置为原点的坐标系。
 
-![摄像机坐标系](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518792127880.jpg)
+![摄像机坐标系](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518792127880.jpg)
 
 1.摄像机位置
 
@@ -313,7 +313,7 @@ OpenGL本身没有摄像机(Camera)的概念，但可以通过把场景中的所
 
 使用矩阵的好处之一是如果你使用3个相互垂直(或非线性)的轴定义了一个坐标空间，你可以用这3个轴外加一个平移向量来创建一个矩阵，并且你可以用这个矩阵乘以任何向量来将其变换到那个坐标空间。这正是LookAt矩阵所做的。
 
-![Look At 矩阵](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518793655102.jpg)
+![Look At 矩阵](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518793655102.jpg)
 
 其中`R`是右向量，`U`是上向量，`D`是方向向量，`P`是摄像机位置向量。通过这个LookAt矩阵作为观察矩阵可以很高效地把所有世界坐标变换到刚刚定义的观察空间。
 
@@ -339,17 +339,17 @@ GLM已经提供了这些支持。我们所需要做的只是定义一个摄像�
 
 **欧拉角(Euler Angle)**是可以表示3D空间中任何旋转的3个值，3个欧拉角分别为:**俯仰角(Pitch)**、**偏航角(Yaw)**和**滚转角(Roll)**，下面图片展示了它们的含义:
 
-![欧拉角](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518795491918.jpg)
+![欧拉角](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518795491918.jpg)
 
 **俯仰角**是描述如何往上或往下看的角。**偏航角**表示往左和往右看的程度。**滚转角**代表如何翻滚摄像机。
 
 对于我们的摄像机系统来讲，只关心俯仰角和偏航角，不会讨论滚转角。给定一个俯仰角和偏航角，可以把它们转换为一个代表新的方向向量的3D向量。俯仰角和偏航角转换为方向向量的处理需要一些三角学知识。
 
-![基础三角形知识](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518796147279.jpg)
+![基础三角形知识](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter1/1518796147279.jpg)
 
 如果把斜边边长定义为1，就知道邻边的长度是`cos x/h = cos x/1 = cos x`，它的对边是`sin y/h = sin y/1 = sin y`。这样获得了能够得到x和y方向长度的通用公式，它们取决于所给的角度。
 
-![在XZ平面上得到的图像](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/1518796387005.jpg)
+![在XZ平面上得到的图像](https://github.com/whynotAC/Learn_Opengl/blob/master/chapter1/Document/1518796387005.jpg)
 
 这个三角形看起来跟前面的三角形很想，所以如果我们想象自己在xz平面上，看向y轴，可以基于第一个三角形计算来计算它的长度:
 
