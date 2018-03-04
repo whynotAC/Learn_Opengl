@@ -112,4 +112,38 @@
 >
 >在顶点着色器中实现的冯氏光照模型叫做**Gouraud着色(Gouraud Shading)**，而不是**冯氏着色(Phong Shading)**.
 
+材质
+--------------------
+想要在OpenGL中模拟多种类型的物体，必须为每个物体分别定义一个**材质(Material)**属性。当描述一个物体的时候，用这三个分量来定义一个材质颜色(Material Color):环境光照(Ambient Lighting)、漫反射光照(Diffuse Lighting)和镜面光照(Specular Lighting)。通过为每个分量指定一个颜色，就能够对物体的颜色输出有精确的控制。再添加一个反光度(Shininess)这个分量，就构成了材质的所有属性。
+
+					`#version 330 core
+					 struct Material {
+					 	vec3 ambient;
+					 	vec3 diffuse;
+					 	vec3 specular;
+					 	float shininess;
+					 };
+					 
+					 uniform Material material;`
+					 
+通过上结构体可以看出，为冯氏光照模型中每一个分量都定义一个颜色向量。`ambient`材质向量定义了在环境光照下这个物体反射的是什么颜色，通常这是和物体颜色相同的颜色。`diffuse`材质向量定义了在漫反射光照下物体的颜色。`specular`材质向量设置的是镜面光照对物体的颜色影响(或者甚至可能反射一个物体特定的镜面高光颜色)。最后，`shininess`影响镜面高光的散射/半径。通过这个材质系统就可以模拟现实世界中的材质。
+
+**光的属性**
+
+光源对环境光、漫反射和镜面光照分量也有具有着不同的强度。前面通过使用一个强度值来改变环境光和镜面光照强度的方式来解决问题，但这次使用为每个光照分量都指定一个强度分量。
+
+					`struct Light {
+					 	vec3 position;
+					 	
+					 	vec3 ambient;
+					 	vec3 diffuse;
+					 	vec3 specular;
+					 };
+					 
+					 
+					 uniform Light light;`
+
+一个光源对它的`ambient`、`diffuse`和`specular`光照有着不同的强度。环境光照通常会设置一个比较低的强度。光源的漫反射分量通常为光所具有的颜色，通常是一个比较明亮的白色。镜面光分量通常会保持为`vec3(1.0)`，以最大强度发光。
+
+
 
