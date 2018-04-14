@@ -195,3 +195,88 @@ OpenGL允许修改深度测试中使用的比较运算符。通过这样可以�
 3.**适用范围**
 
 这个算法能够在一个模型类中轻松实现。可以在模型类中设置一个`boolean`标记，来设置需不需要绘制边框。除了物体轮廓之外，模版测试还有很多用途，比如在后视镜中绘制纹理，让它能够绘制到镜子形状中，或者使用一个叫做阴影体积(`Shadow Volume`)的模版缓冲技术渲染实时阴影。模版缓冲为丰富OpenGL工具箱又提供了一个很好的工具。
+
+混合
+------------------------------------------------------
+OpenGL中，**混合(Blending)**通常是实现物体**透明度(Transparency)**的一种技术。透明就是说一个物体(或者其中的一部分)不是纯色(Solid Color)的。它的颜色是物体本身的颜色和它背后其它物体的颜色的不同强度组合。这也就是混合这一名字的出处，**混合(Blend)**多种颜色为一种颜色。
+
+**丢弃片段**
+
+在片段着色器中，`GLSL`提供了`discard`命令，一旦被调用，它就会保证片段不会被进一步处理，所以就不会进入颜色缓冲。有了这个命令，就能够在片段着色器中检测一个片段的`alpha`值是否低于某个阀值，如果是的话，则丢弃这个片段，就好像它不存在一样。
+
+**混合**
+
+要想渲染有多个透明度级别的图像，需要启用**混合(Blending)**。
+
+>`glEnable(GL_BLEND);`
+
+启用混合之后，需要告诉`OpenGL`它该如何混合。
+
+`OpenGL`中的混合是通过下面这个方程来实现的:
+
+![混合实现方式](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter4/blending.jpg)
+
+片段着色器运行完成后，并且所有的测试都通过之后，这个**混合方程(Blend Equation)**才会应用到片段颜色输出与当前颜色缓冲中的值上。源颜色和目标颜色将会由OpenGL自动设定，但源因子和目标因子的值可以由我们来决定。
+
+`OpenGL`提供了一个专门的函数`glBlendFunc`。
+
+>`glBlendFunc(GLenum sfactor, GLenum dfactor);`
+
+这个函数接受两个参数，来设置**源**和**目标因子**。`OpenGL`定义了很多个选项，将在下面列出大部分最常用的选项。注意仓鼠颜色向量可以通过`glBlendColor`函数来另外设置。
+
+|		选项		|		值			|
+| -------------	| ------------	|
+| GL_ZERO			| 因子等于0			|
+| GL_ONE			| 因子等于1			|
+| GL\_SRC\_COLOR	| 因子等于源颜色向量Csource|
+| GL\_ONE\_MINUS\_SRC\_COLOR | 因子等于1 - Csource |
+| GL\_DST\_COLOR 	| 因子等于目标颜色向量Cdestination |
+| GL\_ONE\_MINUS\_DST\_COLOR | 因子等于1 - Cdestination |
+| GL\_SRC\_ALPHA	| 因子等于Csource的alpha分量 |
+| GL\_ONE\_MINUS\_SRC\_ALPHA | 因子等于1 - Csource的alpha分量 |
+| GL\_DST\_ALPHA	| 因子等于Cdestination的alpha分量 |
+| GL\_ONE\_MINUS\_DST\_ALPHA | 因子等于1 - Cdestination的alpha分量 |
+| GL\_CONSTANT\_COLOR | 因子等于常数颜色向量Cconstant |
+| GL\_ONE\_MINUS\_CONSTANT\_COLOR | 因子等于1 - Cconstant |
+| GL\_CONSTANT\_ALPHA | 因子等于Cconstant的alpha分量 |
+| GL\_ONE\_MINUS\_CONSTANT\_ALPHA | 因子等于1 - Cconstant的alpha分量 |
+
+为了获得之前两个方形的混合结果，需要使用源颜色向量的`alpha`作为源因子，使用`1 - alpha`作为目标因子。将会产生以下的`glBlendFunc`:
+
+>`glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);`
+
+也可以使用`glBlendFuncSeparate`为`RGB`和`alpha`通道分别设置不同的选项:
+
+>`glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ZERO);`
+
+这个函数和之前设置的那样设置了`RGB`分量，但这样只能让最终的`alpha`分量被源颜色向量的`alpha`值所影响到。
+
+`OpenGL`提供了多种灵活性，允许改变方程中源和目标部分的运算符。当前源和目标是相加的，但如果愿意的话，也可以让它们相减。`glBlendEquation(GLenum mode)`允许设置运算符，它提供了三个选项：
+
+* `GL_FUNC_ADD`:默认选项，将两个分量相加: Cresult = Src + Dst.
+* `GL_FUNC_SUBTRACT`:将两个分量相减: Cresult = Src - Dst.
+* `GL_FUNC_REVERSE_SUBTRACT`:将两个分量相减，但顺序相反: Cresult = Dst - Src.
+
+通常可以省略调用`glBlendEquation`。
+
+**渲染半透明纹理**
+
+每当`OpenGL`渲染一个片段时，它都会将当前片段的颜色和当前颜色缓冲中的片段颜色根据`alpha`值来进行混合。
+
+当透明的窗户和木箱同时存在时，会发生透明窗户绘制不正确的现象。发生这一现象的原因是，深度测试和混合一起使用的话会产生一些麻烦。当写入深度缓冲时，深度缓冲不会检查片段是否是透明的，所以透明的部分会和其它值一样写入到深度缓冲中。结果就是窗户的整个四边形不论透明度都会进行深度测试。即使透明的部分应该显示背后的窗户，深度测试仍然丢弃它们。
+
+所以不能随意地决定如何渲染窗户，让深度缓冲解决所有的问题。这也是混合变得有些麻烦的部分。要想保证窗户中能够显示它们背后的窗户，需要首先绘制背后的这部分窗户。这也就是说在绘制的时候，必须先手动将窗户按照最远到最近来排序，在按照顺序渲染。
+
+>PS:对于草这中全透明的物体，可以选择丢弃透明的片段而不是混合它们。
+
+**不要打乱顺序**
+
+要想让混合在多个物体上工作，需要最先绘制最远的物体，最后绘制最近的物体。普通不需要混合的物体仍然可以使用深度缓冲正常绘制，所以它们不需要排序。但让仍要保证它们在绘制(排序的)透明物体之前已经绘制完毕。当绘制一个有不透明和透明物体的场景的时候，大体的原则如下:
+
+1. 先绘制所有不透明的物体。
+2. 对所有透明的物体排序。
+3. 按顺序绘制所有透明的物体。
+
+排序透明物体的一种方法是，从观察者视角获取物体的距离。这可以通过计算摄像机位置向量和物体的位置向量之间的距离所获得。
+
+在场景中排序物体是一个很困难的技术，很大程度上由场景的类型所决定，更别说它额外需要消耗的处理能力。完整渲染一个包含不透明和透明物体的场景并不是那么容易。更高级的技术还有**次序无关透明度(Order Independent Transparaency,OIT)**.
