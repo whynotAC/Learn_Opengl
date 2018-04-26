@@ -324,3 +324,77 @@ OpenGL中，**混合(Blending)**通常是实现物体**透明度(Transparency)**
 >`glFrontFace(GL_CCW);`
 
 默认值是`GL_CCW`,它代表的是逆时针的环绕顺序，另一个选项是`GL_CW`，它(显然)代表的是顺时针顺序。
+
+帧缓冲
+-----------------------------------------------------
+到目前为止，我们已经使用大量的屏幕缓冲区：用于写入颜色值的颜色缓冲、用于写入深度信息的深度缓冲和允许根据一些条件丢弃特定片段的模版缓冲。这些缓冲结合起来叫做**帧缓冲(Framebuffer)**，它被储存在内存中。OpenGL允许定义自己的帧缓冲，也就是能够定义自己的颜色缓冲，甚至是深度缓冲和模版缓冲。
+
+目前所做的所有操作都是在**默认帧缓冲**的渲染缓冲上进行的。默认的帧缓冲是在创建窗口的时候生成和配置的。有了自己的帧缓冲，就能够有更多方式来渲染场景。
+
+**创建一个帧缓冲**
+
+和OpenGL中的其它对象一样，会使用一个叫做`glGenFramebuffers`的函数来创建一个帧缓冲对象(Framebuffer Object, FBO):
+
+>		unsigned int fbo;
+>		glGenFramebuffers(1, &fbo);
+
+这种创建和使用对象的方式我们已经见过很多次了，所以它的使用函数也和其它的对象类似。首先创建一个帧缓冲对象，将它绑定为激活的(`Active`)帧缓冲，做一些操作，之后解绑帧缓冲。使用`glBindFramebuffer`来绑定帧缓冲。
+
+>		glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+
+在绑定到`GL_FRAMEBUFFER`目标之后，所有的读取和写入帧缓冲的操作将会影响当前绑定的帧缓冲。也可以使用`GL_READ_FRAMEBUFFER`或`GL_DRAW_FRAMEBUFFER`，将一个帧缓冲分别绑定到读取目标或写入目标。绑定到`GL_READ_FRAMEBUFFER`的帧缓冲将会使用到类似`glReadPixels`的读取操作中，而绑定到`GL_DRAW_FRAMEBUFFER`的帧缓冲将会被用作渲染、清除等写入操作的目标。大部分情况不需要区分它们，通常都会使用`GL_FRAMEBUFFER`，绑定到两个上。
+
+一个完整的帧缓冲需要满足以下的条件:
+
+* 附加至少一个缓冲(颜色、深度或模版缓冲)。
+* 至少有一个颜色附件(Attachment)。
+* 所有的附件都必须是完整的(保留了内存)。
+* 每个缓冲都应该有相同的样本数。
+
+从上面的条件中可以知道，需要为帧缓冲创建一些附件，并将附件添加到帧缓冲上。在完成所有的条件之后，可以使用`GL_FRAMEBUFFER`为参数调用`glCheckFramebufferStatus`，检查帧缓冲是否完整。它将会检测当前绑定额帧缓冲，并返回预定义的值之一。如果返回的值是`GL_FRAMEBUFFER_COMPLETE`，帧缓冲就是完整的。
+
+>		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE)
+
+之后所有的渲染操作将会渲染到当前绑定帧缓冲的附件中。由于创建的帧缓冲u 事默认帧缓冲，渲染指令将不会对窗口的视觉输出有任何影响。处于这个原因，渲染到一个不同的帧缓冲被叫做**离屏渲染(Off-screen Rendering)**。要保证所有的渲染操作在主窗口中有视觉效果，需要再次激活默认帧缓冲，将它绑定到`0`。
+
+>		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+在完成所有的帧缓冲操作之后，不要忘记删除这个帧缓冲对象:
+
+>		glDeleteFramebuffers(1, &fbo);
+
+在完整性检查执行之前，需要给帧缓冲附加一个附件。**附件**是一个内存位置，它能够作为帧缓冲的一个缓冲，可以将它想象为一个图像。当创建一个附件的时候有两个选项: 纹理或渲染缓冲对象(Renderbuffer Object)。
+
+**纹理附件**
+
+当把一个纹理附加到帧缓冲的时候，所有的渲染指令将会写入到这个纹理中，就想象它是一个普通的颜色/深度或模版缓冲一样。**使用纹理的优点是，所有渲染操作的结果将会被储存在一个纹理图像中，之后就可以很方便地使用它**。
+
+为帧缓冲创建一个纹理和创建一个普通的纹理差不多:
+
+>		unsigned int texture;
+>		glGenTextures(1, &texture);
+>		glBindTexture(GL_TEXTURE_2D, texture);
+>
+>		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+>		
+>		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+>		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+主要的区别是，将维度设置为屏幕大小，并且给纹理的`data`参数传递`NULL`。对于这个纹理，仅仅分配了内存而没有填充它。填充这个纹理将会在渲染到帧缓冲之后进行。同样我们不关心环绕方式或多级渐远纹理，在大多数情况下都不会需要它们。
+
+> PS:
+> 		如果你想将你的屏幕渲染到一个更小或更大的纹理上，你需要(在渲染到你的帧缓冲之前)再次调用`glViewport`，使用纹理的新维度作为参数，否则只有一个小部分的纹理或屏幕会被渲染到这个纹理上。
+
+现在要将创建好的纹理附加到帧缓冲上:
+
+> 		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texture, 0);
+
+`glFrameBufferTexture2D`有以下的参数:
+
+* `target`: 帧缓冲的目标(绘制、读取或者两者皆有)。
+* `attachment`: 想要附加的附件类型。注意`0`意味着可以附加多个颜色附件。
+* `textarget`: 纹理类型(格式)。
+* `texture`: 要附加的纹理本身。
+* `level`: 多级渐远纹理的级别。将它保留为0。
+
+除了颜色附件之外，还可以附加一个深度和模版缓冲纹理到帧缓冲对象中。要
