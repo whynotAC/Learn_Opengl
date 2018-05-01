@@ -397,4 +397,129 @@ OpenGL中，**混合(Blending)**通常是实现物体**透明度(Transparency)**
 * `texture`: 要附加的纹理本身。
 * `level`: 多级渐远纹理的级别。将它保留为0。
 
-除了颜色附件之外，还可以附加一个深度和模版缓冲纹理到帧缓冲对象中。要
+除了颜色附件之外，还可以附加一个深度和模版缓冲纹理到帧缓冲对象中。要附加深度缓冲的话，将附件类型设置为`GL_DEPTH_ATTACHMENT`。注意纹理的**格式(Format)**和**内部格式(Internalformat)**类型将变为`GL_DEPTH_COMPONENT`，来反映深度缓冲的储存格式。要附加模版缓冲的话，要将第二个参数设置为`GL_STENCIL_ATTACHMENT`，并将纹理的格式设定为`GL_STENCIL_INDEX`。
+
+也可以将深度缓冲和模版缓冲附加为一个单独的纹理。纹理的每32位数值将包含24位的深度信息和8位的模版信息。要将深度和模版缓冲附加为一个纹理的话，使用`GL_DEPTH_STENCIL_ATTACHMENT`类型，并配置纹理的格式，让它包含合并的深度和模版值。其例子如下:
+
+>		glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, 800, 600, 0, GL_DEPTH_STENCIL, GL_UNSIGMED_INT_24_8, NULL);
+>		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, texture, 0);
+
+**渲染缓冲对象附件**
+
+**渲染缓冲对象(Renderbuffer Object)**是在纹理之后引入到`OpenGL`中，作为一个可用的帧缓冲附件类型的，所以在过去纹理是唯一可用的附件。和纹理图像一样，渲染缓冲对象是一个真正的缓冲，即一系列的字节、整数、像素等。渲染缓冲对象附加的好处是，它会将数据储存为`OpenGL`原生的渲染格式，它是为离屏渲染到帧缓冲优化过的。
+
+渲染缓冲对象直接将所有的渲染数据储存到它的缓冲中，不会做任何针对纹理格式的转换，让它变为一个更快的可写储存介质。然而，渲染缓冲对象通常是只写的，所以你不能读取它们。当然仍然可以能够使用`glReadPixels`来读取它，这回从当前绑定的帧缓冲返回特定区域的像素，而不是附件本身。
+
+因为它的数据已经是原生的格式，当写入或者复制它的数据到其它缓冲中时是非常快的。所以，交换缓冲这样的操作在使用渲染缓冲对象时会非常快。在每个渲染迭代最后使用的`glfwSwapBuffers`，也可以通过渲染缓冲对象实现：只需要写入一个渲染缓冲图像，并在最后交换到另外一个渲染缓冲就可以了。
+
+创建一个渲染缓冲对象的代码和帧缓冲的代码很类似:
+
+>			unsigned int rbo;
+>			glGenRenderbuffers(1, &rbo);
+
+类似，需要绑定这个渲染缓冲对象，让之后所有的渲染缓冲操作影响当前的`rbo`:
+
+>			glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+
+由于渲染缓冲对象通常是只写的，它们会经常用于深度和模版附件，因为大部分时间都不需要从深度和模版缓冲中读取值，只关心深度和模版测试。需要深度和模版值用于测试，但不需要对它们进行采样，所以渲染缓冲对象非常适合它们。当不需要从这些缓冲中采样的时候，通常都会选择渲染缓冲对象，因为它会更优化一点。
+
+创建一个深度和模版渲染缓冲对象可以通过调用`glRenderbufferStorage`函数来完成:
+
+>			glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+
+创建一个渲染缓冲对象和纹理对象类似，不同的是这个对象是专门被设计作为图像使用的，而不是纹理那样的通常数据缓冲(`General Purpose Data Buffer`)。这里选择`GL_DEPTH24_STENCIL8`作为内部格式，它封装了24位的深度和8位的模版缓冲。
+
+最后一件事就是附加这个渲染缓冲对象:
+
+>		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+渲染缓冲对象能为缓冲对象提供一些优化，但需要知道何时进行使用。通常的规则是，如果不需要从一个缓冲中采样数据，那么对这个缓冲使用渲染缓冲对象会是明智的选择。如果需要从缓冲中采样颜色或深度值等数据，那么应该选择纹理附件。性能方面它不会产生非常大的影响。
+
+**渲染到纹理**
+
+既然已经知道帧缓冲的工作原理，就是时候实践。首先将场景渲染到一个附加到帧缓冲对象上的颜色纹理中，之后将在一个横跨整个屏幕的四边形上绘制这个纹理。这样视觉输出和没有使用帧缓冲时是完全一样的，但这次是打印到了一个四边形上。
+
+首先要创建一个帧缓冲对象，并绑定它:
+
+>		unsigend int framebuffer;
+>		glGenFramebuffers(1, &framebuffer);
+>		glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+
+接下来需要创建一个纹理图像，将它作为一个颜色附件附加到帧缓冲上。将纹理的维度设置为窗口的宽度和高度，并且不初始化它的数据。
+
+>		// 生成纹理
+>		unsigned int texColorBuffer;
+>		glGenTextures(1, &texColorBuffer);
+>		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, 800, 600, 0, GL_RGB, GL_UNSIGNED_BYTE, NULL);
+>		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_GILTER, GL_LINEAR);
+>		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+>		glBindTexture(GL_TEXTURE_2D, 0);
+>
+>		// 将它附加到当前绑定的帧缓冲对象
+>		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texColorBuffer, 0);
+
+还希望`OpenGL`能够进行深度测试(如果需要的话，还有模版测试)，所以还需要添加一个深度(和模版)附件到帧缓冲中。由于只希望采样颜色缓冲，而不是其它的缓冲，可以为它们创建一个渲染缓冲对象。
+
+创建一个渲染缓冲对象不是非常复杂。唯一需要记住的事情是，将它创建为一个深度和模版附件渲染缓冲对象。将它的内部格式设置为`GL_DEPTH25_STENCIL8`。
+
+>		unsigned int rbo;
+>		glGenRenderbuffers(1, &rbo);
+>		glBindRenderbuffer(GL_RENDERBUFFER, rbo);
+>		glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, 800, 600);
+>		glBindRenderbuffer(GL_RENDERBUFFER, 0);
+
+加下来，作为完成帧缓冲之前的最后一步，将渲染缓冲对象附加到帧缓冲的深度和模版附件上:
+
+>		glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbo);
+
+最后，检查帧缓冲是否完整。
+
+>		if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+>			std::cout << "ERROR::FRAMEBUFFER:: Framebuffer is not complete!" << std::endl;
+>		}
+>		glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+记得要解绑帧缓冲，保证不会不小心渲染到错误的帧缓冲上。
+
+现在这个帧缓冲就完整了，只需要绑定这个帧缓冲对象，让渲染到帧缓冲中而不是默认的帧缓冲中。之后的渲染指令将会影响当前绑定的帧缓冲。所有的深度和模版操作都会从当前绑定的帧缓冲的深度和模版附件中(如果有的话)读取。如果忽略深度缓冲，那么所有的深度测试操作将不再工作，因为当前绑定的帧缓冲中不存在深度缓冲。
+
+需要绘制场景到一个纹理上，需要采取以下步骤：
+
+1. 将新的帧缓冲绑定为激活的帧缓冲，和往常一样渲染场景。
+2. 绑定默认的帧缓冲。
+3. 绘制一个横跨整个屏幕的四边形，将帧缓冲的颜色缓冲作为它的纹理。
+
+> PS:每一个帧缓冲都拥有自己的一套缓冲，需要在何时的位置调用`glClear`,清除这些缓冲。
+
+帧缓冲的好处是能够以一个纹理图像的方式访问已渲染场景中的每个像素，因此就可以在片段着色器中创建出非常有趣的效果。这些有趣的效果统称为**后期处理(Post-processing)**效果。
+
+**后期处理**
+
+既然整个场景都被渲染到了一个纹理上，可以简单地通过修改纹理数据创建一些非常有趣的效果。
+
+1.反相
+
+用1.0减去纹理中的颜色，从而使眼色输出有反相效果。
+
+2.灰度
+
+这个有趣的效果是，移除场景中除了黑白以外所有的颜色，让整个图像灰度化(Grayscale)。很简单的实现方式是，去所有的颜色分量，将它们平均化。
+
+3.核效果
+
+在一个纹理图像上做后期处理的另一个好处是，可以从纹理的其他地方采样颜色值。比如可以在当前纹理坐标的周围取一小块区域，对当前纹理值周围的多个纹理值进行采样。
+
+**核(Kernel)**(或卷积矩阵(Convolution Matrix))是一个类矩阵的数值数组，它的中心为当前的像素，它会用它的核值乘以周围的像素值，并将结果相加变成一个值。所以，基本上是在对当前像素周围的纹理坐标添加一个小的偏移量，并根据核将结果合并。
+
+>	PS: 大部分核将所有的权重加起来之后都应该会等于1，如果它们加起来不等于1，这就意味着最终的纹理颜色将会比原纹理值更亮或者更暗。
+
+核的几种例子：
+
+模糊核：
+
+![模糊核](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter4/blur_kernel.jpg)
+
+边缘检测核
+
+![模糊核](https://github.com/whynotAC/Learn_Opengl/blob/master/Document/chapter4/edge_detection_kernel.jpg)
+
